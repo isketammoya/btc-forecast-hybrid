@@ -4,73 +4,55 @@ import numpy as np
 import yfinance as yf
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
-
 import streamlit as st
 
-# --- 1. SET PAGE CONFIG (Mesti kat paling atas) ---
+# --- 1. SET PAGE CONFIG ---
 st.set_page_config(page_title="Vantage BTC", layout="wide")
 
-# --- 2. CUSTOM CSS (Untuk buang padding extra & cantikkan banner) ---
+# --- 2. CUSTOM CSS UNTUK BACKGROUND ---
 st.markdown("""
     <style>
-    /* Buat banner nampak sebiji macam image_799bea.jpg */
-    .hero-container {
-        background-image: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), 
-                          url('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=2000'); 
+    /* Kotak Banner Utama */
+    .hero-banner {
+        background-image: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), 
+                          url('https://images.unsplash.com/photo-1518546305927-5a555bb7020d?q=80&w=2000'); 
         background-size: cover;
         background-position: center;
-        padding: 80px 20px;
-        border-radius: 20px;
+        padding: 100px 40px;
+        border-radius: 15px;
         text-align: center;
+        border: 1px solid #333;
+        margin-top: -30px;
+    }
+    
+    .hero-text {
         color: white;
-        border: 1px solid #444;
-        margin-top: -50px; /* Tarik ke atas sikit */
+        font-family: 'Helvetica Neue', sans-serif;
     }
-    .hero-title {
-        font-size: 60px;
-        font-weight: 900;
-        letter-spacing: 5px;
-        color: #4A90E2;
-        margin-bottom: 10px;
-    }
-    .hero-subtitle {
-        font-size: 18px;
-        font-weight: 300;
-        letter-spacing: 2px;
-        margin-bottom: 25px;
-        text-transform: uppercase;
-    }
-    .status-badge {
-        background-color: #28a745;
-        color: white;
-        padding: 8px 20px;
-        border-radius: 5px;
-        font-size: 14px;
-        font-weight: bold;
+
+    /* Hilangkan padding putih atas yang Streamlit selalu letak */
+    .block-container {
+        padding-top: 2rem;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. TAMPILKAN HERO BANNER (Ganti st.title) ---
+# --- 3. PAPARKAN BANNER ---
 st.markdown("""
-    <div class="hero-container">
-        <div class="hero-title">VANTAGE BTC</div>
-        <div class="hero-subtitle">THE SHARPEST EDGE FOR BITCOIN 7-DAY AHEAD TREND PREDICTION</div>
-        <div>
-            <span class="status-badge">✅ Models and scaler loaded.</span>
+    <div class="hero-banner">
+        <div class="hero-text">
+            <h1 style="font-size: 55px; font-weight: 900; letter-spacing: 3px; margin-bottom: 0;">VANTAGE BTC</h1>
+            <p style="font-size: 18px; letter-spacing: 1px; opacity: 0.8;">THE SHARPEST EDGE FOR BITCOIN TREND PREDICTION</p>
+            <div style="margin-top: 30px;">
+                <span style="background-color: #28a745; color: white; padding: 8px 20px; border-radius: 5px; font-weight: bold; font-size: 14px;">
+                    ✅ Models and scaler loaded.
+                </span>
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-# JANGAN LETAK st.title() LAGI KAT BAWAH NI. TERUS MASUK KOD DATA ENGINE.
-
-st.markdown("---") # Garis pemisah nipis
-
-# --- 4. SIDEBAR ---
-with st.sidebar:
-    st.header("Step 1: System Settings")
-    horizon = st.selectbox("Forecast Horizon", [1, 3, 5, 7])
-    # ... butang run Anis kat sini ...
+st.markdown("<br>", unsafe_allow_html=True) # Jarakkan sikit dengan content bawah
 # --- 1. CONFIGURATION ---
 st.set_page_config(page_title="BitPredict Pro", layout="wide")
 st.title("🚀 BITPREDICT PRO: Real-Time Bitcoin Forecasting")
