@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 from datetime import timedelta
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="CoinForecast Pro", layout="wide")
-st.title("🚀 FINTECH EDGE: BTC HYBRID FORECASTING")
+st.set_page_config(page_title="Bitcoin Forecast Pro", layout="wide")
+st.title("🚀 Bitcoin Forecast Pro")
 st.markdown("### Historical Validation & Future Prediction")
 
 # --- STEP 1: UPLOAD DATA ---
