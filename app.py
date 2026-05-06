@@ -7,56 +7,70 @@ from datetime import datetime, timedelta
 
 import streamlit as st
 
-# --- 1. CUSTOM CSS (Untuk buat kotak macam gambar tu) ---
+# --- 1. SET PAGE CONFIG (Mesti kat paling atas) ---
+st.set_page_config(page_title="Vantage BTC", layout="wide")
+
+# --- 2. CUSTOM CSS (Untuk buang padding extra & cantikkan banner) ---
 st.markdown("""
     <style>
+    /* Buat banner nampak sebiji macam image_799bea.jpg */
     .hero-container {
-        background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), 
+        background-image: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), 
                           url('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=2000'); 
         background-size: cover;
         background-position: center;
-        padding: 60px;
-        border-radius: 15px;
+        padding: 80px 20px;
+        border-radius: 20px;
         text-align: center;
         color: white;
-        border: 2px solid #3e3e3e;
-        margin-bottom: 30px;
+        border: 1px solid #444;
+        margin-top: -50px; /* Tarik ke atas sikit */
     }
     .hero-title {
-        font-size: 50px;
-        font-weight: 800;
-        letter-spacing: 2px;
-        margin-bottom: 0px;
-        color: #1E90FF;
+        font-size: 60px;
+        font-weight: 900;
+        letter-spacing: 5px;
+        color: #4A90E2;
+        margin-bottom: 10px;
     }
     .hero-subtitle {
-        font-size: 20px;
-        font-weight: 400;
-        margin-top: 10px;
-        opacity: 0.9;
+        font-size: 18px;
+        font-weight: 300;
+        letter-spacing: 2px;
+        margin-bottom: 25px;
+        text-transform: uppercase;
+    }
+    .status-badge {
+        background-color: #28a745;
+        color: white;
+        padding: 8px 20px;
+        border-radius: 5px;
+        font-size: 14px;
+        font-weight: bold;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. TAMPILKAN HERO BANNER ---
+# --- 3. TAMPILKAN HERO BANNER (Ganti st.title) ---
 st.markdown("""
     <div class="hero-container">
         <div class="hero-title">VANTAGE BTC</div>
         <div class="hero-subtitle">THE SHARPEST EDGE FOR BITCOIN 7-DAY AHEAD TREND PREDICTION</div>
-        <div style="margin-top: 20px;">
-            <span style="background-color: #28a745; padding: 5px 15px; border-radius: 5px; font-size: 14px;">
-                ✅ Models and scaler loaded.
-            </span>
+        <div>
+            <span class="status-badge">✅ Models and scaler loaded.</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR (Macam dalam gambar Anis) ---
-st.sidebar.title("Step 1: System Settings")
-st.sidebar.write("Configure your forecast preferences below.")
-horizon = st.sidebar.selectbox("Select Horizon", [1, 3, 5, 7])
-st.sidebar.button("Run Prediction Engine")
+# JANGAN LETAK st.title() LAGI KAT BAWAH NI. TERUS MASUK KOD DATA ENGINE.
 
+st.markdown("---") # Garis pemisah nipis
+
+# --- 4. SIDEBAR ---
+with st.sidebar:
+    st.header("Step 1: System Settings")
+    horizon = st.selectbox("Forecast Horizon", [1, 3, 5, 7])
+    # ... butang run Anis kat sini ...
 # --- 1. CONFIGURATION ---
 st.set_page_config(page_title="BitPredict Pro", layout="wide")
 st.title("🚀 BITPREDICT PRO: Real-Time Bitcoin Forecasting")
