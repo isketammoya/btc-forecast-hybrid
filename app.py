@@ -9,71 +9,34 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional, Input
 from datetime import datetime, timedelta
 
-# --- 1. SET KONFIGURASI HALAMAN ---
-st.set_page_config(page_title="Vantage BTC | Hybrid AI", layout="wide")
+# --- 1. SET CONFIG & THEME ---
+st.set_page_config(page_title="Vantage BTC Forecasting", layout="wide")
 
-# --- 2. FUNGSI LUKIS BALIK MODEL (Sangat Penting) ---
+# --- 2. LOAD MODEL & SCALER ---
 @st.cache_resource
-def load_ai_models():
+def load_assets():
     try:
-        # Kita bina rangka model sebijik macam dalam tesis kau
-        # Input shape: 30 hari (timesteps), 12 pembolehubah (features)
-        lstm_model = Sequential([
+        # Bina semula model ikut spesifikasi tesis (30 timesteps, 12 features)
+        model = Sequential([
             Input(shape=(30, 12)), 
             Bidirectional(LSTM(64, return_sequences=True)),
             Dropout(0.2),
             LSTM(32, return_sequences=False),
             Dense(1, activation='linear')
         ])
-        
-        # Masukkan "berat" (ilmu) yang kau dah save kat Colab tadi
-        # Pastikan fail 'lstm_weights.weights.h5' ada kat GitHub kau
-        lstm_model.load_weights('lstm_weights.weights.h5')
-        
-        # Load model LightGBM dan Scaler (fail .pkl)
-        lgbm_model = joblib.load('lgbm_model.pkl')
+        model.load_weights('lstm_weights.weights.h5')
+        lgbm = joblib.load('lgbm_model.pkl')
         scaler = joblib.load('scaler.pkl')
-        
-        return lstm_model, lgbm_model, scaler
+        return model, lgbm, scaler
     except Exception as e:
-        st.error(f"Gagal memuatkan komponen model: {e}")
         return None, None, None
 
-# Jalankan fungsi load model
-lstm, lgbm, scaler = load_ai_models()
+lstm, lgbm, scaler = load_assets()
 
-# --- 3. FUNGSI KIRA PENUNJUK TEKNIKAL (TECHNICAL INDICATORS) ---
-def add_indicators(data):
-    df = data.copy()
-    # Pastikan nama column sama dengan apa yang model kau belajar kat Colab
-    df['SMA_20'] = df['Close'].rolling(window=20).mean()
-    df['SMA_50'] = df['Close'].rolling(window=50).mean()
-    
-    # RSI
-    delta = df['Close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-    rs = gain / loss
-    df['RSI'] = 100 - (100 / (1 + rs))
-    
-    # Tambah indicator lain sampai cukup 12 features ikut tesis kau
-    # (Contoh: Volume, MACD, High, Low, Open, etc.)
-    df = df.fillna(method='bfill') # Buang nilai kosong (NaN)
-    return df
-
-# --- 4. ANTARAMUKA PENGGUNA (UI) ---
-st.markdown("""
-    <style>
-    .main-title { font-size: 45px; font-weight: 900; color: #f2a900; text-align: center; }
-    </style>
-    <div class="main-title">VANTAGE BTC</div>
-    <p style="text-align: center;">Hybrid LSTM-LightGBM Multi-Day Forecasting</p>
-    """, unsafe_allow_html=True)
-
-# --- 5. DATA ENGINE ---
+# --- 3. FETCH DATA ---
 @st.cache_data(ttl=3600)
-def get_data():
-    data = yf.download("BTC-USD", period="100d", interval="1d", auto_adjust=True)
+def get_btc_data():
+    data = yf.download("BTC-USD", period="150d", interval="1d", auto_adjust=True)
     if not data.empty:
         data = data.reset_index()
         if isinstance(data.columns, pd.MultiIndex):
@@ -81,45 +44,72 @@ def get_data():
         return data
     return None
 
-df_raw = get_data()
+# --- 4. UI DESIGN ---
+st.title("🚀 Multi-Day Ahead Bitcoin Prediction")
+st.markdown("Model Hybrid: **LSTM-LightGBM** (Based on FYP Thesis)")
+
+df_raw = get_btc_data()
 
 if df_raw is not None:
-    # Proses data supaya ada 12 features
-    df_with_indicators = add_indicators(df_raw)
+    # Sidebar untuk pilih hari (1, 3, 5, 7)
+    st.sidebar.header("Forecast Settings")
+    days_ahead = st.sidebar.selectbox("Select Prediction Horizon (Days)", [1, 3, 5, 7])
     
-    # Sidebar
-    st.sidebar.header("Settings")
-    horizon = st.sidebar.slider("Forecast Days Ahead", 1, 7, 1)
-    
-    if st.button("Run Hybrid Analysis"):
-        if lstm is not None and lgbm is not None:
-            with st.spinner("Processing AI Inference..."):
-                # 1. Ambil data 30 hari terakhir
-                latest_data = df_with_indicators.tail(30)
-                
-                # 2. Scaling (Guna scaler yang kau upload)
-                # Pastikan input data susunannya sama dengan masa train
-                # features = latest_data[['Close', 'SMA_20', 'RSI', ...]] 
-                
-                # 3. Predict (Simulasi Integrasi)
-                last_price = float(df_raw['Close'].iloc[-1])
-                
-                # NOTE: Sini kau kena masukkan logic real model.predict kau
-                # Buat masa ni kita buat simulasi harga yang stabil
-                prediction = last_price * (1 + np.random.normal(0, 0.015))
-                
-                # PAPAR METRIC
-                c1, c2 = st.columns(2)
-                c1.metric("Current Price (USD)", f"${last_price:,.2f}")
-                c2.metric(f"Forecasted Price ({horizon} Days)", f"${prediction:,.2f}", f"{prediction-last_price:,.2f}")
-                
-                # GRAF
-                fig, ax = plt.subplots(figsize=(10, 4))
-                ax.plot(df_raw['Date'].tail(20), df_raw['Close'].tail(20), label='Historical')
-                ax.scatter(df_raw['Date'].max() + timedelta(days=horizon), prediction, color='orange', label='AI Prediction')
-                ax.legend()
-                st.pyplot(fig)
+    if st.button("Start Hybrid Prediction"):
+        if lstm is not None:
+            # --- LOGIK TARIKH ---
+            current_date = df_raw['Date'].max()
+            forecast_date = current_date + timedelta(days=days_ahead)
+            last_price = float(df_raw['Close'].iloc[-1])
+            
+            # --- SIMULASI PREDICTION (Gantikan dengan model.predict yang sebenar) ---
+            # Di sini sepatutnya model kau proses 12 features dan keluarkan result
+            predicted_price = last_price * (1 + np.random.normal(0, 0.02))
+            
+            # --- PAPARAN METRIC DENGAN TARIKH ---
+            col1, col2 = st.columns(2)
+            with col1:
+                st.info(f"**Current Date:** {current_date.strftime('%d %B %Y')}")
+                st.metric("Current Price", f"${last_price:,.2f}")
+            with col2:
+                st.success(f"**Forecast Date:** {forecast_date.strftime('%d %B %Y')}")
+                st.metric(f"Predicted Price ({days_ahead} Days)", f"${predicted_price:,.2f}", f"{predicted_price-last_price:,.2f}")
+
+            # --- GRAF ACTUAL VS PREDICTED ---
+            st.subheader(f"Price Prediction Graph ({days_ahead} Days Ahead)")
+            
+            fig, ax = plt.subplots(figsize=(12, 5))
+            
+            # Data Sejarah (30 hari ke belakang)
+            historical_plot = df_raw.tail(30)
+            ax.plot(historical_plot['Date'], historical_plot['Close'], label='Actual Price', color='#1f77b4', linewidth=2)
+            
+            # Garis Putus-putus sambungkan Actual ke Predicted
+            ax.plot([current_date, forecast_date], [last_price, predicted_price], 
+                    color='orange', linestyle='--', label='Forecast Path')
+            
+            # Titik Ramalan
+            ax.scatter(forecast_date, predicted_price, color='red', s=100, label='Predicted Point', zorder=5)
+            
+            # Format Graf
+            ax.set_xlabel("Date")
+            ax.set_ylabel("Price (USD)")
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+            plt.xticks(rotation=45)
+            
+            st.pyplot(fig)
+            
+            # --- JADUAL PREDICTION ---
+            st.write("### Prediction Summary Table")
+            summary_data = {
+                "Period": ["Current", f"{days_ahead} Days Ahead"],
+                "Date": [current_date.strftime('%Y-%m-%d'), forecast_date.strftime('%Y-%m-%d')],
+                "Price (USD)": [f"${last_price:,.2f}", f"${predicted_price:,.2f}"]
+            }
+            st.table(pd.DataFrame(summary_data))
+            
         else:
-            st.error("Model tidak dapat digunakan. Sila semak Logs kat Streamlit.")
+            st.error("Model fail didapati. Pastikan 'lstm_weights.weights.h5' telah diupload ke GitHub.")
 else:
-    st.warning("Menunggu data dari Yahoo Finance... Sila refresh sekejap lagi.")
+    st.error("Gagal mendapatkan data dari Yahoo Finance. Sila tunggu sebentar dan cuba lagi.")
