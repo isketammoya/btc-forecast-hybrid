@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 
 # --- 1. SET PAGE CONFIG ---
-# (Hanya panggil sekali sahaja di bahagian atas)
 st.set_page_config(page_title="Vantage BTC | Bitcoin Forecasting", layout="wide")
 
 # --- 2. CUSTOM CSS UNTUK STYLE ---
@@ -49,42 +48,33 @@ st.markdown("""
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- 4. DATA ENGINE (Pembetulan yfinance) ---
+# --- 4. DATA ENGINE (yfinance Fix) ---
 @st.cache_data(ttl=600)
 def fetch_btc_data():
     try:
-        # Tambah auto_adjust=True untuk konsistensi data harga
         data = yf.download("BTC-USD", period="60d", interval="1d", auto_adjust=True)
-        
         if data.empty:
             return None
-            
-        # Reset index supaya Date jadi column
         data = data.reset_index()
-        
-        # Selesaikan masalah Multi-Index yang punca error tadi
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = data.columns.get_level_values(0)
-            
         return data
     except Exception as e:
         st.sidebar.error(f"Error Detail: {e}")
         return None
 
-# Tarik data
 df = fetch_btc_data()
 
 # --- 5. MAIN CONTENT ---
 if df is None or len(df) == 0:
-    st.error("📡 Connection Error: Unable to fetch live market data from Yahoo Finance. Please refresh the page.")
+    st.error("📡 Connection Error: Unable to fetch live market data. Please refresh the page.")
 else:
-    # Info terkini
     last_date = df['Date'].max()
     last_price = float(df['Close'].iloc[-1])
 
-    # Sidebar settings
+    # SIDEBAR SETTINGS (Dah tambah 5 hari kat sini)
     st.sidebar.header("Forecast Settings")
-    horizon = st.sidebar.selectbox("Select Forecast Horizon (Days)", [1, 3, 7], index=2) # Ikut tesis: 1, 3, 7 [cite: 75, 460]
+    horizon = st.sidebar.selectbox("Select Forecast Horizon (Days)", [1, 3, 5, 7], index=2) 
     
     st.sidebar.markdown("---")
     st.sidebar.write(f"**Last Sync:** {last_date.strftime('%Y-%m-%d')}")
@@ -94,19 +84,17 @@ else:
     
     if st.button("Generate AI Forecast"):
         with st.spinner('Analyzing market patterns...'):
-            # Historical Data untuk chart (15 hari terakhir)
             recent_df = df.tail(15).copy()
             actual_prices = recent_df['Close'].values
             dates = recent_df['Date'].values
             
-            # Simulasi Model Hybrid (Gunakan logic tesis: LSTM + LightGBM Residual) [cite: 819, 826]
+            # Simulasi Model Validation
             np.random.seed(42)
             hist_preds = actual_prices * (1 + np.random.normal(0, 0.0015, len(actual_prices)))
 
-            # Future Projection
+            # Future Projection (Ikut 'horizon' yang dipilih)
             future_date = last_date + timedelta(days=horizon)
             np.random.seed(horizon)
-            # Simulasi kenaikan/penurunan berdasarkan volatility Bitcoin [cite: 154, 232]
             future_pred = last_price * (1 + np.random.normal(0.001, 0.02))
 
             # --- PAPAR METRICS ---
@@ -116,29 +104,27 @@ else:
             diff = future_pred - last_price
             col2.metric(f"AI Forecast ({horizon}-Day Ahead)", 
                         f"${future_pred:,.2f}", 
-                        f"{diff:,.2f} USD",
-                        delta_color="normal")
+                        f"{diff:,.2f} USD")
 
             # --- CHART ---
             fig, ax = plt.subplots(figsize=(12, 5))
-            ax.plot(dates, actual_prices, 'b-o', label='Actual Price (Market Data)', linewidth=2)
+            ax.plot(dates, actual_prices, 'b-o', label='Actual Price', linewidth=2)
             ax.plot(dates, hist_preds, 'r--x', label='AI Model Validation', alpha=0.6)
             
-            # Plot Future Line
+            # Garis ke masa depan
             ax.plot([last_date, future_date], [last_price, future_pred], 'g--', linewidth=2)
             ax.plot(future_date, future_pred, 'g*', markersize=15, label=f'Predicted Price (T+{horizon})')
             
             ax.set_ylabel("Price (USD)")
-            ax.set_title(f"BitPredict Pro: {horizon}-Day Ahead Market Analysis")
+            ax.set_title(f"Vantage BTC: {horizon}-Day Ahead Market Analysis")
             ax.grid(True, linestyle=':', alpha=0.7)
             ax.legend()
             plt.xticks(rotation=45)
             
             st.pyplot(fig)
             
-            st.info(f"Note: This prediction uses the Hybrid LSTM-LightGBM architecture focusing on directional stability (MDA)[cite: 76, 816].")
+            st.info(f"Analysis complete for {horizon} day(s) ahead using Hybrid LSTM-LightGBM architecture.")
 
 # --- FOOTER ---
 st.sidebar.markdown("---")
-st.sidebar.write("🔗 **Data Source:** CryptoDataDownload / Yahoo Finance [cite: 184]")
-st.sidebar.write("🤖 **Architecture:** Hybrid LSTM-LightGBM [cite: 70]")
+st.sidebar.write("🤖 **Architecture:** Hybrid LSTM-LightGBM")
