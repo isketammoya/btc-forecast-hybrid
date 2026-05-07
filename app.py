@@ -9,13 +9,12 @@ from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional, Input
 from datetime import datetime, timedelta
 
 # --- 1. SET KONFIGURASI HALAMAN ---
-st.set_page_config(page_title="Vantage BTC Forecasting", layout="wide")
+st.set_page_config(page_title="Vantage BTC Predictor", layout="wide")
 
-# --- 2. FUNGSI MUAT NAIK FAIL MODEL (Guna Fail GitHub Kau) ---
+# --- 2. LOAD AI ASSETS ---
 @st.cache_resource
 def load_ai_models():
     try:
-        # Senibina model ikut Methodology kau
         model = Sequential([
             Input(shape=(30, 12)), 
             Bidirectional(LSTM(64, return_sequences=True)),
@@ -32,27 +31,22 @@ def load_ai_models():
 
 lstm, lgbm, scaler = load_ai_models()
 
-# --- 3. PENGIRAAN PENUNJUK TEKNIKAL (Untuk cukupkan 12 features) ---
-def add_thesis_indicators(data):
+# --- 3. DATA PROCESSING ---
+def add_indicators(data):
     df = data.copy()
     df['SMA_20'] = df['Close'].rolling(window=20).mean()
     df['SMA_50'] = df['Close'].rolling(window=50).mean()
-    df['Volume'] = df['Volume']
-    # RSI
     delta = df['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
     rs = gain / loss
     df['RSI'] = 100 - (100 / (1 + rs))
-    # Tambah indicator lain di sini sampai cukup 12 features
-    df = df.fillna(method='bfill') # Buang nilai kosong
+    df = df.fillna(method='bfill')
     return df
 
-# --- 4. MUAT TURUN DATA LIVE ---
 @st.cache_data(ttl=3600)
 def get_btc_data():
-    # Ambil data lebih sikit untuk kira SMA/RSI dengan betul
-    data = yf.download("BTC-USD", period="200d", interval="1d", auto_adjust=True)
+    data = yf.download("BTC-USD", period="150d", interval="1d", auto_adjust=True)
     if not data.empty:
         data = data.reset_index()
         if isinstance(data.columns, pd.MultiIndex):
@@ -60,87 +54,70 @@ def get_btc_data():
         return data
     return None
 
-# --- 5. ANTARAMUKA PENGGUNA (UI) ---
+# --- 4. ANTARAMUKA PENGGUNA (UI) ---
+# Tajuk yang lebih kemas dan profesional
 st.markdown("""
     <style>
-    .fyp-title { font-size: 40px; font-weight: 900; color: #1f77b4; text-align: center; }
+    .main-title { font-size: 42px; font-weight: 800; color: #f2a900; text-align: center; margin-bottom: 0px; }
+    .sub-title { font-size: 18px; color: #666; text-align: center; margin-bottom: 30px; }
     </style>
-    <div class="fyp-title">BTC Hybrid LSTM-LightGBM Engine</div>
+    <div class="main-title">VANTAGE BTC PREDICTOR</div>
+    <div class="sub-title">Advanced AI Analysis for Bitcoin Market Trends</div>
     """, unsafe_allow_html=True)
 
 df_raw = get_btc_data()
 
 if df_raw is not None:
-    # Sidebar
-    st.sidebar.header("Forecast Settings")
-    days_ahead = st.sidebar.selectbox("Prediction Horizon (Days)", [1, 3, 5, 7])
+    # Sidebar - Lebih ringkas
+    st.sidebar.header("Analysis Settings")
+    days_ahead = st.sidebar.selectbox("Forecast Horizon", ["1 Day Ahead", "3 Days Ahead", "5 Days Ahead", "7 Days Ahead"])
+    # Tukar pilihan kepada integer
+    horizon_map = {"1 Day Ahead": 1, "3 Days Ahead": 3, "5 Days Ahead": 5, "7 Days Ahead": 7}
+    h_days = horizon_map[days_ahead]
     
-    if st.button("Generate FYP Graph"):
+    if st.button("Run Market Analysis"):
         if lstm is not None:
-            with st.spinner("AI analyzing market..."):
-                # --- A. PERSEDIAAN DATA ---
-                df_with_ind = add_thesis_indicators(df_raw)
-                current_date = df_with_ind['Date'].max()
-                last_price = float(df_with_ind['Close'].iloc[-1])
-                forecast_date = current_date + timedelta(days=days_ahead)
+            with st.spinner("Analyzing market patterns..."):
+                current_date = df_raw['Date'].max()
+                last_price = float(df_raw['Close'].iloc[-1])
+                forecast_date = current_date + timedelta(days=h_days)
                 
-                # Kita plot 45 hari ke belakang
-                recent_data = df_with_ind.tail(45)
-                actual_prices = recent_data['Close'].values
-                dates = recent_data['Date'].values
-                
-                # --- B. SIMULASI HISTORICAL PRED (Garis Merah Putus) ---
-                # Di sini kau kena ganti dengan model.predict yang sebenar
-                # Buat masa ni kita buat simulasi 'predicted historical' yang rapat
-                # dengan actual untuk penanda aras (benchmarking)
-                np.random.seed(42)
-                hist_predictions = actual_prices * (1 + np.random.normal(0, 0.002, len(actual_prices)))
-                
-                # --- C. SIMULASI FUTURE PRED (Titik Merah Bintang) ---
-                np.random.seed(days_ahead)
-                future_prediction = last_price * (1 + np.random.normal(0.001, 0.02))
+                # Simulasi Prediction (Nanti ganti dengan real predict)
+                np.random.seed(h_days)
+                predicted_price = last_price * (1 + np.random.normal(0, 0.02))
 
-                # --- METRICS ---
+                # --- Metrics Section ---
                 col1, col2 = st.columns(2)
-                col1.metric(f"Current Price ({current_date.strftime('%d/%m')})", f"${last_price:,.2f}")
-                col2.metric(f"AI Forecast ({forecast_date.strftime('%d/%m')})", f"${future_prediction:,.2f}", f"{future_prediction-last_price:,.2f}")
+                col1.metric(f"Current Market Price ({current_date.strftime('%d %b')})", f"${last_price:,.2f}")
+                col2.metric(f"AI Forecasted Price ({forecast_date.strftime('%d %b')})", f"${predicted_price:,.2f}", f"{predicted_price-last_price:,.2f} USD")
 
-                # --- D. GRAF MENGIKUT standard FYP KAU ---
-                st.subheader(f"Bitcoin Movement Analysis: {days_ahead} Days Ahead")
+                # --- Graph Section ---
+                st.subheader(f"Price Movement Analysis: {days_ahead}")
+                plt.style.use('dark_background') # Gunakan tema gelap supaya nampak lebih 'fintech'
+                fig, ax = plt.subplots(figsize=(12, 6))
                 
-                # Guna tema ggplot/seaborn untuk nampak clean macam thesis kau
-                plt.style.use('seaborn-v0_8-whitegrid')
+                hist_plot = df_raw.tail(40)
+                ax.plot(hist_plot['Date'], hist_plot['Close'], color='#f2a900', linewidth=2, label='Actual Market Price')
                 
-                fig, ax = plt.subplots(figsize=(14, 7))
+                # Garis Trend ke depan
+                ax.plot([current_date, forecast_date], [last_price, predicted_price], 
+                        color='white', linestyle='--', alpha=0.6, label='Predicted Trend')
                 
-                # 1. Plot Actual Price (Garis Biru Padat)
-                ax.plot(dates, actual_prices, color='#1f77b4', linewidth=2.5, label='Actual Price')
-                
-                # 2. Plot Hybrid Forecast (Garis Merah Putus-putus)
-                ax.plot(dates, hist_predictions, color='#d62728', linestyle='--', linewidth=1.5, alpha=0.7, label='Hybrid Forecasted Price (Validation)')
-                
-                # 3. Plot Future Prediction (Garis oren putus + Titik bintang merah)
-                # Sambungkan titik terakhir actual ke predicted point
-                ax.plot([current_date, forecast_date], [last_price, future_prediction], color='#ff7f0e', linestyle=':', linewidth=2)
-                ax.scatter(forecast_date, future_prediction, color='#d62728', marker='*', s=250, label='Future Prediction', zorder=10)
+                # Titik ramalan yang menonjol
+                ax.scatter(forecast_date, predicted_price, color='#f2a900', s=150, edgecolors='white', marker='o', zorder=5, label='Forecast Point')
 
-                # Format Graf
-                ax.set_ylabel("Price (USD)")
-                #ax.set_xlabel("Date")
-                ax.grid(True, linestyle='-', alpha=0.3)
-                ax.legend(loc='best', frameon=True)
-                
-                # Format tarikh kat paksi-X
-                #import matplotlib.dates as mdates
-                #ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+                ax.set_ylabel("Price in USD")
+                ax.legend()
+                ax.grid(True, alpha=0.2)
                 plt.xticks(rotation=45)
-                plt.tight_layout()
-                
                 st.pyplot(fig)
                 
-                # Tesis Note
-                st.info(f"Analysis Note: MDA (Mean Directional Stability) logic is used to validate directional stability for {days_ahead} day(s) ahead.")
+                # Jadual Ringkasan
+                st.write("### Prediction Summary")
+                st.table(pd.DataFrame({
+                    "Timeline": ["Current Market", f"Forecast ({days_ahead})"],
+                    "Date": [current_date.strftime('%Y-%m-%d'), forecast_date.strftime('%Y-%m-%d')],
+                    "Price (USD)": [f"${last_price:,.2f}", f"${predicted_price:,.2f}"]
+                }))
         else:
-            st.error("Gagal load model (lstm_weights.weights.h5). Sila check logs.")
-else:
-    st.warning("Yahoo Finance Rate Limited. Cuba lagi nanti.")
+            st.error("System encountered an error. Please contact support.")
