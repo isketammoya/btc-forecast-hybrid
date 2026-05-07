@@ -15,7 +15,7 @@ st.set_page_config(page_title="Vantage BTC | AI Forecasting", layout="wide")
 def load_ai_models():
     try:
         # Pastikan nama fail ini sama dengan yang anda upload di GitHub
-        lstm = load_model('lstm_model.h5')
+        lstm = load_model('lstm_model.keras')
         lgbm = joblib.load('lgbm_model.pkl')
         scaler = joblib.load('scaler.pkl')
         return lstm, lgbm, scaler
